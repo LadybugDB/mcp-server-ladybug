@@ -1,0 +1,22 @@
+[project]
+name = "mcp-server-ladybug"
+version = "0.1.0"
+description = "A MCP server for LadybugDB - an embedded graph database with Cypher query language"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.9.4",
+    "tabulate>=0.9.0",
+    "click>=8.1.8",
+    "starlette>=0.46.1",
+    "uvicorn>=0.34.0",
+    "anyio>=4.8.0",
+    "real-ladybug>=0.13.0",
+]
+
+[project.scripts]
+mcp-server-ladybug = "mcp_server_ladybug:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

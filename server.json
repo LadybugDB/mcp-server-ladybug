@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mcp-server-ladybug": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-ladybug",
+        "--db-path",
+        ":memory:"
+      ]
+    }
+  }
+}
