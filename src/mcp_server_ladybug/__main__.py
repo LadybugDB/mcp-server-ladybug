@@ -88,7 +88,7 @@ def create_app(server, initialization_options):
 @click.option(
     "--db-path",
     type=str,
-    default="$HOME/.ladybug/mcp.ldbdb",
+    default=os.path.expandvars("$HOME/.ladybug/mcp.ldbdb"),
     help="Path to LadybugDB database file (default: $HOME/.ladybug/mcp.ldbdb)",
 )
 @click.option(
