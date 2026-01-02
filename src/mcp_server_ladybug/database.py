@@ -24,6 +24,15 @@ class DatabaseClient:
             logger.info(f"Connecting to Ladybug database at: {self.db_path}")
             db = lb.Database(self.db_path)
             conn = lb.Connection(db)
+
+            logger.info("Loading DuckDB extensions: json")
+            conn.execute("INSTALL json")
+            conn.execute("LOAD json")
+
+            logger.info("Loading DuckDB extensions: duckdb")
+            conn.execute("INSTALL duckdb")
+            conn.execute("LOAD duckdb")
+
             logger.info("Successfully connected to Ladybug database")
             return conn
         except ImportError:

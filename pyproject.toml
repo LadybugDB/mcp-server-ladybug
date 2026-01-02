@@ -11,7 +11,7 @@ dependencies = [
     "starlette>=0.46.1",
     "uvicorn>=0.34.0",
     "anyio>=4.8.0",
-    "real-ladybug>=0.13.0",
+    "real-ladybug>=0.13.1",
 ]
 
 [project.scripts]
