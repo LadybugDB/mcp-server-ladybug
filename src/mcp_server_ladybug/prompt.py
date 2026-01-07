@@ -259,6 +259,10 @@ LadybugDB Cypher differs from Neo4j in several ways:
 
 8. Limited label expressions:
    - No multi-label queries like Neo4j
+
+9. substring start index:
+   - Neo4j: 0-based indexing. RETURN substring("hello", 1, 4) returns "ello"
+   - Ladybug: 1-based indexing, in consistent with SQL standards
 </differences-from-neo4j>
 
 <example-queries>
