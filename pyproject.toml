@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-ladybug"
-version = "0.1.0"
+version = "0.1.1"
 description = "A MCP server for LadybugDB - an embedded graph database with Cypher query language"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -11,7 +11,7 @@ dependencies = [
     "starlette>=0.46.1",
     "uvicorn>=0.34.0",
     "anyio>=4.8.0",
-    "real-ladybug>=0.13.1",
+    "real-ladybug>=0.14.0",
 ]
 
 [project.scripts]
