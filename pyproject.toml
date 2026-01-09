@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-ladybug"
-version = "0.1.1"
+version = "0.1.2"
 description = "A MCP server for LadybugDB - an embedded graph database with Cypher query language"
 readme = "README.md"
 requires-python = ">=3.10"
