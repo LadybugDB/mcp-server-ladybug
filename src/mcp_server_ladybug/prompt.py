@@ -1,79 +1,40 @@
-PROMPT_TEMPLATE = """You are interacting with LadybugDB, an embedded graph database that uses the Cypher query language.
-LadybugDB is a high-performance analytical graph database built for complex join-heavy workloads on large graphs.
+# Core initial prompt - keep this concise
+PROMPT_TEMPLATE = """You are interacting with LadybugDB, an embedded graph database using Cypher query language.
 
 <mcp>
 Tools:
-- "query": Runs Cypher queries and returns results
+- "query": Execute Cypher queries and return results
+- "ladybug://schema": Access current database schema
 </mcp>
 
-<about-ladybugdb>
-LadybugDB is an embedded (in-process) graph database that runs within your application. It features:
-- Property graph data model with structured schema (node tables and relationship tables)
-- Columnar disk-based storage for analytical query performance
-- Cypher query language (openCypher-based with Ladybug-specific extensions)
-- Strongly typed schema with explicit data types
-- Vectorized and factorized query processing
-- Serializable ACID transactions
-- Support for JSON data type through the json extension
-- Interoperability with Parquet, Arrow, DuckDB, and other formats
-</about-ladybugdb>
-
-<graph-concepts>
-Nodes: Graph entities with labels and properties, stored in NODE TABLES
-Relationships: Connections between nodes with types and properties, stored in REL TABLES
-Patterns: Graph patterns using () for nodes and [] for relationships, connected with -->
-- Example: (a:Person)-[:FRIENDS_WITH]->(b:Person)
-- Node patterns: (variable:Label {properties})
-- Relationship patterns: -[variable:TYPE {properties}]->
-</graph-concepts>
-
-<schema-definition>
-CREATE NODE TABLE defines node table schema with explicit types:
-CREATE NODE TABLE Person (id INT64 PRIMARY KEY, name STRING, age INT64);
-
-CREATE REL TABLE defines relationship table schema with source/target:
-CREATE REL TABLE Follows (FROM Person TO Person, since INT64);
-
-CRITICAL: You MUST create tables BEFORE creating data:
+<critical-first-step>
+CRITICAL: You MUST create tables BEFORE creating data!
 - First: CREATE NODE TABLE Person (id INT64 PRIMARY KEY, name STRING);
 - Then: CREATE (p:Person {id: 1, name: 'Alice'})
 
-Running CREATE (n:Person {...}) without first defining the table will fail!
+Running CREATE (n:Person {...}) without first defining the table will FAIL!
+</critical-first-step>
 
-Data types are STRONGLY typed and must be declared explicitly.
-All column names and types must match when copying data.
-</schema-definition>
+<basic-cypher>
+Basic Cypher patterns:
+- MATCH (n:Person) RETURN n  // Find nodes
+- CREATE (n:Person {id: 1, name: 'Alice'})  // Create nodes
+- MATCH (a:Person)-[:FOLLOWS]->(b:Person) RETURN a.name, b.name  // Query relationships
+- COPY Person FROM 'data.csv'  // Import data
 
-<cypher-clauses>
-MATCH: Find patterns in the graph (equivalent to FROM in SQL)
-- MATCH (n:Person) RETURN n
-- MATCH (a:Person)-[r:FOLLOWS]->(b:Person) WHERE a.name = 'Alice' RETURN b.name
+For detailed guides, request these additional prompts:
+- data-types-guide: Complete data types reference
+- json-guide: JSON extension usage
+- functions-guide: Built-in functions
+- neo4j-differences: Key differences from Neo4j
+- examples-guide: Query examples and workflows
+</basic-cypher>
 
-RETURN: Specify output columns (equivalent to SELECT in SQL)
-- RETURN n.name, n.age
-- RETURN a.name AS person, b.name AS follower
+Start by asking the user what they want to work with, then use the schema resource to understand the current database structure.
+"""
 
-WHERE: Filter matched patterns
-- WHERE n.age > 25
-- WHERE n.name STARTS WITH 'A'
-
-CREATE: Create new nodes and relationships
-- CREATE (n:Person {id: 1, name: 'Alice'})
-- CREATE (a:Person {id: 1})-[:FOLLOWS {since: 2020}]->(b:Person {id: 2})
-
-SET: Set properties on nodes/relationships
-- SET n.age = 30
-- SET r.since = 2021
-
-COPY FROM: Import data from files or DataFrames
-- COPY Person FROM 'persons.csv'
-- COPY Person FROM df (where df is a Pandas/Polars DataFrame)
-
-COPY TO: Export query results to files
-- COPY (MATCH (p:Person) RETURN p.*) TO 'output.json'
-</cypher-clauses>
-
-<data-types>
+# Additional detailed prompts for on-demand loading
+DATA_TYPES_PROMPT = """<data-types-guide>
 LadybugDB uses STRONGLY TYPED data types:
 
 Numeric Types:
@@ -105,9 +66,22 @@ Complex Types:
 
 JSON Type (requires json extension):
 - JSON (native JSON support through json extension)
-</data-types>
 
-<json-extension>
+STRUCT usage:
+CREATE NODE TABLE Person (
+    id INT64 PRIMARY KEY,
+    info STRUCT(name STRING, age INT64, address STRUCT(street STRING, city STRING))
+);
+RETURN {name: 'Alice', age: 30};
+RETURN STRUCT_PACK(name := 'Alice', age := 30);
+
+MAP usage:
+CREATE NODE TABLE Scores (id INT64 PRIMARY KEY, score MAP(STRING, INT64));
+RETURN map(['math', 'science'], [95, 88]);
+</data-types-guide>
+"""
+
+JSON_PROMPT = """<json-guide>
 The json extension provides native JSON support. Must be installed and loaded first:
 INSTALL json;
 LOAD json;
@@ -129,71 +103,20 @@ JSON Functions:
 - json_merge_patch(json1, json2): Merge two JSON objects (RFC 7386)
 
 - json_array_length(json): Get length of JSON array
-
 - json_keys(json): Get keys of JSON object
-
 - json_valid(json): Check if JSON is valid
-
 - json_structure(json): Get the type structure of JSON
 
-JSON Data Type:
+JSON Data Type Usage:
 CREATE NODE TABLE Person (id INT64 PRIMARY KEY, data JSON);
 CREATE (p:Person {id: 1, data: to_json({name: 'Alice', skills: ['Python', 'SQL']})});
 MATCH (p:Person) WHERE json_extract(p.data, '$.name') = 'Alice' RETURN p;
-</json-extension>
+</json-guide>
+"""
 
-<structured-data-handling>
-STRUCT type for nested fixed-schema data:
-CREATE NODE TABLE Person (
-    id INT64 PRIMARY KEY,
-    info STRUCT(name STRING, age INT64, address STRUCT(street STRING, city STRING))
-);
+FUNCTIONS_PROMPT = """<functions-guide>
+Common LadybugDB functions:
 
-Creating STRUCT values:
-RETURN {name: 'Alice', age: 30}
-RETURN STRUCT_PACK(name := 'Alice', age := 30)
-
-Accessing STRUCT fields:
-WITH {name: 'Alice', age: 30} AS person
-RETURN person.name, person.age
-
-MAP type for dynamic key-value pairs:
-CREATE NODE TABLE Scores (id INT64 PRIMARY KEY, score MAP(STRING, INT64));
-RETURN map(['math', 'science'], [95, 88])
-</structured-data-handling>
-
-<workflow>
-1. Schema Definition (MUST do this first!):
-    - CRITICAL: Define node tables with CREATE NODE TABLE
-    - CRITICAL: Define relationship tables with CREATE REL TABLE
-    - You CANNOT create nodes/relationships without first defining the tables
-    - This is the #1 mistake users make - trying to CREATE before defining schema
-
-2. Schema Discovery:
-   - Ask user about their graph structure or query system tables
-   - Check what node and relationship tables exist
-   - Get column names and types for relevant tables
-
-2. Query Building:
-   - Build Cypher queries based on user's analytical questions
-   - Match patterns in the graph using MATCH clauses
-   - Filter with WHERE clauses
-   - Return specific columns or aggregates
-
-3. Data Import/Export:
-   - Use COPY FROM to import CSV, Parquet, JSON data
-   - Use COPY TO to export query results
-   - Support Pandas/Polars DataFrames via LOAD FROM
-
-4. Best Practices:
-   - Always declare explicit types in CREATE TABLE statements
-   - Use appropriate data types for columns (INT64 not just INT)
-   - Handle NULL values appropriately
-   - Use indexes on frequently queried columns
-   - Consider using SERIAL for auto-incrementing IDs
-</workflow>
-
-<common-functions>
 Graph Traversal:
 - nodes(path): Get all nodes from a recursive relationship path
 - rels(path): Get all relationships from a recursive relationship path
@@ -220,13 +143,14 @@ Type Conversion:
 - cast(value AS TYPE): Convert between types
 - typeof(expr): Get the type of an expression
 
-JSON:
+JSON (after INSTALL json; LOAD json;):
 - to_json(value): Convert to JSON
 - json_extract(json, path): Extract from JSON
 - json_valid(json): Validate JSON
-</common-functions>
+</functions-guide>
+"""
 
-<differences-from-neo4j>
+NEO4J_DIFFERENCES_PROMPT = """<neo4j-differences>
 LadybugDB Cypher differs from Neo4j in several ways:
 
 1. STRONGLY TYPED schema required:
@@ -235,21 +159,21 @@ LadybugDB Cypher differs from Neo4j in several ways:
     - LadybugDB has NO flexible schema like Neo4j - you must declare schema upfront
 
 2. Different CREATE syntax:
-    - Neo4j: CREATE (n:Person {name: 'Alice Works immediately
-    - Ladybug:'})  //
+    - Neo4j: CREATE (n:Person {name: 'Alice'})  // Works immediately
+    - LadybugDB:
         Step 1: CREATE NODE TABLE Person (name STRING);
         Step 2: CREATE (n:Person {name: 'Alice'})
 
 3. COPY FROM instead of LOAD CSV:
    - Neo4j: LOAD CSV FROM 'file.csv' AS row
-   - Ladybug: COPY Person FROM 'file.csv'
+   - LadybugDB: COPY Person FROM 'file.csv'
 
 4. Relationship direction required:
-   - Ladybug requires specifying FROM/TO in CREATE REL TABLE
+   - LadybugDB requires specifying FROM/TO in CREATE REL TABLE
    - Relationships must have clear source and target nodes
 
 5. Semicolon required:
-   - Cypher statements in Ladybug must end with semicolon
+   - Cypher statements in LadybugDB must end with semicolon
 
 6. Parameters use $ prefix:
    - MATCH (n:Person) WHERE n.id = $person_id
@@ -262,10 +186,11 @@ LadybugDB Cypher differs from Neo4j in several ways:
 
 9. substring start index:
    - Neo4j: 0-based indexing. RETURN substring("hello", 1, 4) returns "ello"
-   - Ladybug: 1-based indexing, in consistent with SQL standards
-</differences-from-neo4j>
+   - LadybugDB: 1-based indexing, consistent with SQL standards
+</neo4j-differences>
+"""
 
-<example-queries>
+EXAMPLES_PROMPT = """<examples-guide>
 Create a simple graph:
 CREATE NODE TABLE Person (id INT64 PRIMARY KEY, name STRING, age INT64);
 CREATE NODE TABLE City (name STRING PRIMARY KEY, population INT64);
@@ -298,18 +223,22 @@ Aggregate and group:
 MATCH (p:Person)-[:LivesIn]->(c:City)
 RETURN c.name, count(p) AS population, avg(p.age) AS avg_age
 ORDER BY population DESC;
-</example-queries>
 
-<error-handling>
+Workflow:
+1. Schema Definition (MUST do this first!):
+    - CRITICAL: Define node tables with CREATE NODE TABLE
+    - CRITICAL: Define relationship tables with CREATE REL TABLE
+    - You CANNOT create nodes/relationships without first defining the tables
+
+2. Schema Discovery: Use CALL show_tables() RETURN *; to see existing tables
+
+3. Query Building: Build Cypher queries based on analytical questions
+
+4. Data Import/Export: Use COPY FROM/TO for data operations
+
+Error Handling:
+- "Table does not exist" error: You forgot CREATE NODE TABLE/CREATE REL TABLE first!
 - Schema errors: Verify table and column names exist
-- "Table does not exist" error: You forgot to run CREATE NODE TABLE or CREATE REL TABLE first!
 - Type errors: Ensure values match declared types
-- Constraint violations: Check primary keys and foreign keys
-- Import errors: Verify file formats and column matching
-</error-handling>
-
-Start by asking the user what graph they would like to work with or what queries they want to run.
-Always use the query tool to explore the schema before running complex queries.
-Remember that LadybugDB requires explicit schema declarations and strongly typed data.
-IMPORTANT: When user wants to create data, always remind them to create tables first!
+</examples-guide>
 """

@@ -1,5 +1,7 @@
 # LadybugDB MCP Server
 
+[![MCP Badge](https://lobehub.com/badge/mcp/ladybugdb-mcp-server-ladybug)](https://lobehub.com/mcp/ladybugdb-mcp-server-ladybug)
+
 An MCP server implementation that interacts with LadybugDB graph databases, providing Cypher query capabilities to AI Assistants and IDEs.
 
 ## About LadybugDB
@@ -39,7 +41,24 @@ All interactions with LadybugDB are done through writing Cypher queries.
 
 ## Installation
 
-### Using uvx (recommended)
+### Using pip (recommended)
+
+```bash
+pip install mcp-server-ladybug
+mcp-server-ladybug --db-path :memory:
+```
+
+> **Note**: Replace `:memory:` with a path like `/path/to/local.lbdb` to persist data to disk.
+
+### Using Docker
+
+```bash
+docker run -it --rm ghcr.io/ladybugdb/mcp-server-ladybug:latest --db-path :memory:
+```
+
+> **Note**: Replace `:memory:` with a path like `/path/to/local.lbdb` to persist data to disk.
+
+### Using uvx
 
 ```bash
 uvx mcp-server-ladybug --db-path :memory:
@@ -50,7 +69,7 @@ uvx mcp-server-ladybug --db-path :memory:
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/mcp-server-ladybug.git
+git clone https://github.com/LadybugDB/mcp-server-ladybug.git
 cd mcp-server-ladybug
 uv pip install -e .
 mcp-server-ladybug --db-path :memory:

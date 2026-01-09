@@ -96,6 +96,17 @@ class DatabaseClient:
         except Exception as e:
             raise ValueError(f"Error executing query: {e}")
 
+    def get_schema(self) -> str:
+        """Get the database schema information"""
+        try:
+            # Use Cypher query to show tables
+            schema_query = "CALL show_tables() RETURN *;"
+            result = self._execute(schema_query)
+            return f"Database Schema:\n{result}"
+        except Exception as e:
+            logger.error(f"Error getting schema: {e}")
+            return f"Error retrieving schema: {e}"
+
     def close(self):
         """Close the database connection"""
         if self.conn:
