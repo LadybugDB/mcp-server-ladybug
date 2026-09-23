@@ -37,7 +37,7 @@ jobs:
         shell: pwsh
         run: |
           choco install openssl.light -y --no-progress
-          $bin = "C:\Program Files\OpenSSL-Win64\bin"
+          $bin = "C:\Program Files\OpenSSL\bin"
           if (-not (Test-Path "$bin\libssl-3-x64.dll")) { throw "OpenSSL DLLs not found at $bin" }
           $env:PATH = "$bin;$env:PATH"
           Add-Content -Path $env:GITHUB_PATH -Value $bin
