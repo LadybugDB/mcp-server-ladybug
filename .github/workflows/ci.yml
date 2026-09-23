@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install package and test deps
+        run: uv pip install --system -e . pytest
+
+      - name: Install OpenSSL 3 (Windows)
+        # _lbug.pyd links OpenSSL dynamically (libssl-3-x64.dll,
+        # libcrypto-3-x64.dll) and the wheel deliberately does not vendor
+        # those DLLs, so install the OpenSSL Light runtime.
+        # See https://github.com/LadybugDB/mcp-server-ladybug/issues/3
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install openssl.light -y --no-progress
+          $bin = "C:\Program Files\OpenSSL-Win64\bin"
+          if (-not (Test-Path "$bin\libssl-3-x64.dll")) { throw "OpenSSL DLLs not found at $bin" }
+          $env:PATH = "$bin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          python -c "import ladybug._lbug; print('pybind backend loads OK')"
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
