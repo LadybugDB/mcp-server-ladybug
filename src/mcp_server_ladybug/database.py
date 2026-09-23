@@ -14,32 +14,50 @@ class DatabaseClient:
         self._max_rows = max_rows
         self._max_chars = max_chars
         self.db_path = db_path
+        self.db = None
         self.conn = self._initialize_connection()
 
     def _initialize_connection(self):
         """Initialize connection to the Ladybug database"""
         try:
-            import real_ladybug as lb
+            import ladybug as lb
 
             logger.info(f"Connecting to Ladybug database at: {self.db_path}")
-            db = lb.Database(self.db_path)
-            conn = lb.Connection(db)
+            self.db = lb.Database(self.db_path)
+            conn = lb.Connection(self.db)
 
-            logger.info("Loading DuckDB extensions: json")
-            conn.execute("INSTALL json")
-            conn.execute("LOAD json")
-
-            logger.info("Loading DuckDB extensions: duckdb")
-            conn.execute("INSTALL duckdb")
-            conn.execute("LOAD duckdb")
+            self._load_extension(conn, "json")
+            self._load_extension(conn, "duckdb")
 
             logger.info("Successfully connected to Ladybug database")
             return conn
         except ImportError:
             raise ImportError(
-                "real_ladybug package is not available. "
-                "Please install it with: pip install real-ladybug"
+                "ladybug package is not available. "
+                "Please install it with: pip install ladybug"
             )
+
+    def _load_extension(self, conn, name: str) -> None:
+        """Best-effort INSTALL/LOAD of an optional extension.
+
+        Extension loading can fail (e.g. UnicodeDecodeError from `LOAD duckdb`
+        on Windows, no network for INSTALL, extension dropped for old
+        versions). These extensions are optional, so log a warning and let the
+        server start instead of crashing. See issue #3.
+        """
+        for stmt in (f"INSTALL {name}", f"LOAD {name}"):
+            try:
+                conn.execute(stmt)
+            except Exception as e:
+                logger.warning(
+                    "Optional extension '%s' not loaded (%s failed: %s). "
+                    "Continuing without it.",
+                    name,
+                    stmt,
+                    e,
+                )
+                return
+        logger.info("Extension '%s' loaded", name)
 
     def _execute(self, query: str) -> str:
         """Execute a Cypher query and format results"""
@@ -58,7 +76,12 @@ class DatabaseClient:
                 if hasattr(res, "get_all"):
                     rows = res.get_all()
                     if rows:
-                        if hasattr(res, "columns"):
+                        if hasattr(res, "get_column_names"):
+                            try:
+                                headers = res.get_column_names()
+                            except Exception:
+                                headers = []
+                        elif hasattr(res, "columns"):
                             headers = res.columns
                         else:
                             headers = []
@@ -109,5 +132,15 @@ class DatabaseClient:
 
     def close(self):
         """Close the database connection"""
-        if self.conn:
-            self.conn.close()
+        if getattr(self, "conn", None):
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            self.conn = None
+        if getattr(self, "db", None):
+            try:
+                self.db.close()
+            except Exception:
+                pass
+            self.db = None
